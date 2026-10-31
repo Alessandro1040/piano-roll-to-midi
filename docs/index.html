@@ -60,7 +60,8 @@
   @media(max-width:860px){.griglia{grid-template-columns:1fr}}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
-  .card video{width:100%;display:block;border-radius:var(--radius);background:#000}
+  .card video{width:100%;display:block;border-radius:var(--radius);background:#000;
+    max-height:520px;object-fit:contain}
   .card .didascalia{display:flex;justify-content:space-between;gap:10px;
     font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:10px}
   canvas{width:100%;display:block;border-radius:var(--radius);background:#0b0c0d;cursor:pointer}
@@ -310,8 +311,6 @@ python3 web_video2midi.py</code></pre>
     note.forEach(function(n){
       var x0 = xDi(n.inizio), x1 = xDi(n.inizio + n.durata);
       var y = PAD.t + (hi - n.midi) * hR;
-      ctx.fillStyle = 'rgba(224,85,60,.16)';
-      ctx.fillRect(PAD.l, y + 1, larg, Math.max(1, hR - 2));
       ctx.fillStyle = '#e0553c';
       ctx.fillRect(x0, y + 1, Math.max(3, x1 - x0), Math.max(2, hR - 2));
       ctx.fillStyle = '#ff7a5c';
@@ -336,6 +335,13 @@ python3 web_video2midi.py</code></pre>
     nn.textContent = d.note.length;
     tdur.textContent = fmt(DUR);
     disegna(0);
+  }).catch(function(){
+    // se il JSON non si carica (es. file:// senza server) almeno il canvas non resta vuoto
+    var ctx = canvas.getContext('2d');
+    canvas.width = 520; canvas.height = 420;
+    ctx.fillStyle = '#8a857d'; ctx.font = '14px system-ui,sans-serif';
+    ctx.fillText('apri questa pagina da un server (GitHub Pages)', 24, 200);
+    nn.textContent = '0';
   });
 
   function frame(){
