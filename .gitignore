@@ -1,0 +1,11 @@
+# file generati usando l'app (i video caricati nel sito restano qui)
+web_lavori/
+
+# python / editor
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+*.bak_*
+*.log

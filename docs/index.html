@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video → MIDI · demo</title>
+<meta name="description" content="Da una registrazione dello schermo del piano roll di FL Studio a un file MIDI: nessun modello da scaricare, solo visione artificiale classica.">
+<style>
+  :root{
+    --bg:#0f1011; --bg-2:#17181a; --panel:#1c1d20; --panel-2:#232428;
+    --line:#2c2e32; --line-2:#3d4045; --text:#f2ece4; --text-dim:#b8b2a9;
+    --muted:#8a857d; --accent:#e0553c; --accent-hi:#ff7a5c;
+    --accent-soft:rgba(224,85,60,.14); --ok:#6fbf73;
+    --serif:"Cormorant Garamond","Iowan Old Style",Georgia,"Times New Roman",serif;
+    --smallcaps:"Cormorant SC","Cormorant Garamond",Georgia,serif;
+    --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --radius:2px; --wrap:1100px; --gutter:clamp(18px,4vw,48px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .wrap{max-width:var(--wrap);margin:0 auto;padding:0 var(--gutter)}
+  h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.1;letter-spacing:.01em;margin:0 0 .4em}
+  h1{font-size:clamp(2.6rem,7vw,4.6rem)}
+  h2{font-size:clamp(1.6rem,3.4vw,2.3rem)}
+  h3{font-size:1.15rem;font-family:var(--sans);font-weight:600;letter-spacing:0}
+  p{margin:0 0 1em;color:var(--text-dim)}
+  code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:3px;padding:.1em .4em;color:var(--text)}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;overflow:auto;font-size:.85rem;line-height:1.55}
+  pre code{background:none;border:0;padding:0}
+  .etichetta{font-family:var(--smallcaps);text-transform:uppercase;letter-spacing:.22em;
+    font-size:.72rem;color:var(--accent-hi);display:block;margin-bottom:.8em}
+
+  header{position:sticky;top:0;z-index:9;background:rgba(15,16,17,.92);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:18px;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .brand img{width:30px;height:30px;object-fit:cover;border-radius:50%}
+  .brand span{font-family:var(--smallcaps);text-transform:uppercase;letter-spacing:.2em;font-size:.72rem;color:var(--text-dim)}
+  .bar nav{display:flex;gap:20px;font-size:.82rem;letter-spacing:.04em}
+  .bar nav a{text-decoration:none;color:var(--text-dim)}
+  .bar nav a:hover{color:var(--accent-hi)}
+
+  .hero{padding:clamp(40px,7vw,86px) 0 10px}
+  .hero p.lead{font-size:clamp(1rem,1.6vw,1.16rem);max-width:62ch}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 0}
+  .btn{display:inline-flex;align-items:center;gap:9px;text-decoration:none;
+    padding:12px 20px;border:1px solid var(--line-2);border-radius:var(--radius);
+    font-size:.86rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text);
+    transition:background .2s ease,border-color .2s ease,color .2s ease}
+  .btn:hover{border-color:var(--accent);color:var(--accent-hi)}
+  .btn--accent{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn--accent:hover{background:var(--accent-hi);border-color:var(--accent-hi);color:#fff}
+
+  section{padding:clamp(36px,6vw,72px) 0;border-top:1px solid var(--line)}
+  .griglia{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,3vw,30px);align-items:start}
+  @media(max-width:860px){.griglia{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .card video{width:100%;display:block;border-radius:var(--radius);background:#000}
+  .card .didascalia{display:flex;justify-content:space-between;gap:10px;
+    font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:10px}
+  canvas{width:100%;display:block;border-radius:var(--radius);background:#0b0c0d;cursor:pointer}
+  .comandi{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+  .tondo{width:38px;height:38px;border-radius:50%;border:1px solid var(--line-2);
+    background:transparent;color:var(--text);cursor:pointer;display:grid;place-items:center;
+    transition:border-color .2s,color .2s}
+  .tondo:hover{border-color:var(--accent);color:var(--accent-hi)}
+  .comandi .tempo{font-variant-numeric:tabular-nums;font-size:.82rem;color:var(--muted)}
+  .comandi a.scarica{margin-left:auto;font-size:.78rem;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--accent-hi);text-decoration:none;border-bottom:1px solid transparent}
+  .comandi a.scarica:hover{border-color:var(--accent-hi)}
+
+  .numeri{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:24px}
+  .numeri div{background:var(--bg-2);border:1px solid var(--line);padding:14px 16px;border-radius:var(--radius)}
+  .numeri b{display:block;font-family:var(--serif);font-size:1.7rem;line-height:1.2;color:var(--text)}
+  .numeri small{color:var(--muted);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
+
+  ol.passi{list-style:none;counter-reset:p;padding:0;margin:0;display:grid;gap:14px}
+  ol.passi li{counter-increment:p;position:relative;padding-left:44px}
+  ol.passi li::before{content:counter(p);position:absolute;left:0;top:-2px;width:28px;height:28px;
+    display:grid;place-items:center;border:1px solid var(--line-2);border-radius:50%;
+    font-family:var(--serif);font-size:.95rem;color:var(--accent-hi)}
+  ol.passi li strong{color:var(--text);font-weight:600}
+  .mini{font-size:.8rem;color:var(--muted)}
+  footer{border-top:1px solid var(--line);padding:30px 0 50px;font-size:.78rem;color:var(--muted)}
+  footer a{color:var(--text-dim);text-decoration:none}
+  footer a:hover{color:var(--accent-hi)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="https://github.com/Alessandro1040/piano-roll-to-midi">
+      <img src="assets/logo.jpg" alt="">
+      <span>Raedius Productions</span>
+    </a>
+    <nav>
+      <a href="#demo">Demo</a>
+      <a href="#modi">Come si usa</a>
+      <a href="#come">Come funziona</a>
+      <a href="guida.html">Guida</a>
+      <a href="https://github.com/Alessandro1040/piano-roll-to-midi">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap hero">
+  <span class="etichetta">Video → MIDI</span>
+  <h1>Il piano roll<br>diventa un <em>.mid</em></h1>
+  <p class="lead">Registri lo schermo mentre il piano roll di FL Studio suona, e torni
+  indietro con le note: inizio, fine, altezza. Nessun audio, nessun modello da
+  scaricare, nessuna GPU: il programma guarda i pixel e li converte in tempo.</p>
+  <div class="cta">
+    <a class="btn btn--accent" href="https://colab.research.google.com/github/Alessandro1040/piano-roll-to-midi/blob/main/colab/piano_roll_to_midi.ipynb">Provalo su Colab</a>
+    <a class="btn" href="#demo">Guarda la demo</a>
+    <a class="btn" href="https://github.com/Alessandro1040/piano-roll-to-midi">Scarica il codice</a>
+  </div>
+</div>
+
+<section id="demo">
+  <div class="wrap">
+    <span class="etichetta">Demo, senza installare niente</span>
+    <h2>Un video dentro, un MIDI fuori</h2>
+    <p style="max-width:64ch">A sinistra il video in ingresso, a destra le note che il
+    programma ha ricavato da quel video: premi play e senti il risultato. Il video è
+    <strong>sintetico</strong> (lo disegna <code>tools/genera_demo.py</code>, così la demo è
+    pubblicabile e riproducibile), ma il MIDI è quello vero prodotto da
+    <code>video2midi.py</code>, senza correzioni a mano.</p>
+
+    <div class="griglia">
+      <div class="card">
+        <video src="assets/demo_video.mp4" poster="assets/demo_poster.png"
+               autoplay muted loop playsinline></video>
+        <div class="didascalia"><span>ingresso · video 720×1280, 6,5 s</span><span>30 fps</span></div>
+      </div>
+      <div class="card">
+        <canvas id="roll" height="420" aria-label="piano roll del MIDI estratto"></canvas>
+        <div class="comandi">
+          <button class="tondo" id="play" aria-label="play">
+            <svg width="12" height="14" viewBox="0 0 12 14" fill="currentColor"><path id="ico" d="M0 0l12 7-12 7z"/></svg>
+          </button>
+          <span class="tempo"><span id="tcur">0,00</span> / <span id="tdur">0,00</span> s</span>
+          <a class="scarica" href="assets/demo_song.mid" download>scarica demo_song.mid ↓</a>
+        </div>
+        <div class="didascalia"><span>uscita · <span id="nn">–</span> note riconosciute</span><span>MIDI, 480 tick</span></div>
+        <audio id="audio" src="assets/demo_song.wav" preload="auto"></audio>
+      </div>
+    </div>
+
+    <div class="numeri">
+      <div><b>18/18</b><small>note disegnate, note trovate</small></div>
+      <div><b>0</b><small>errori di altezza su 17 intervalli</small></div>
+      <div><b>≤ 7 ms</b><small>errore sulle durate</small></div>
+      <div><b>0,7 %</b><small>deriva dei tempi su 5 s</small></div>
+    </div>
+  </div>
+</section>
+<section id="modi">
+  <div class="wrap">
+    <span class="etichetta">Tre modi, dal più semplice</span>
+    <h2>Come si usa</h2>
+    <div class="griglia">
+      <div>
+        <h3>1 · Colab (niente da installare)</h3>
+        <ol class="passi">
+          <li><strong>Apri il notebook</strong> dal pulsante qui sotto: si apre in una scheda del browser.</li>
+          <li><strong>Menu → Esegui tutto.</strong> La prima cella installa le librerie (circa un minuto).</li>
+          <li><strong>Carica il tuo video</strong> quando appare il pulsante <em>Scegli file</em> (mp4, mov, mkv).</li>
+          <li><strong>Scarica il MIDI</strong> dal link che compare in fondo e trascinalo in FL Studio.</li>
+        </ol>
+        <p style="margin-top:18px"><a class="btn" href="https://colab.research.google.com/github/Alessandro1040/piano-roll-to-midi/blob/main/colab/piano_roll_to_midi.ipynb">Apri il notebook</a></p>
+        <p class="mini">Serve solo un account Google. Il video resta nel tuo Drive/Colab, non
+        viene caricato da nessuna parte.</p>
+      </div>
+      <div>
+        <h3>2 · Sul tuo computer, col sito</h3>
+<pre><code>git clone https://github.com/Alessandro1040/piano-roll-to-midi
+cd piano-roll-to-midi
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 web_video2midi.py</code></pre>
+        <p class="mini">Poi apri <code>http://127.0.0.1:7864</code>: trascini il video,
+        scegli BPM e ottava, premi <em>Converti</em> e scarichi il <code>.mid</code>.
+        Su macOS puoi anche fare doppio clic su <code>avvia_midi.command</code>, su Windows
+        su <code>avvia_midi.bat</code>.</p>
+        <h3 style="margin-top:26px">3 · Senza sito, una riga</h3>
+<pre><code>python3 video2midi.py video.mp4 --bpm 140 --ottava 4</code></pre>
+        <p class="mini">Scrive <code>video.mid</code> accanto al video: è quello che il sito
+        lancia sotto il cofano.</p>
+        <p class="mini" style="margin-top:18px"><strong style="color:var(--text)">Attenzione:</strong>
+        <code>127.0.0.1</code> vuol dire <em>questo computer</em>. Il sito non è online:
+        ognuno avvia il proprio. Per questo esiste il notebook Colab.</p>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="come">
+  <div class="wrap">
+    <span class="etichetta">Sotto il cofano</span>
+    <h2>Quattro misure, zero addestramento</h2>
+    <div class="griglia">
+      <div>
+        <p><strong>1. Dove comincia il roll.</strong> La tastiera è la fascia chiara a
+        sinistra: l'ultima colonna chiara dà <code>x</code>, la testina verde che parte
+        dall'alto dà <code>y</code>.</p>
+        <p><strong>2. La griglia dei semitoni.</strong> I tasti neri sono righe scure: i loro
+        centri, arrotondati a multipli di un semitono, danno altezza della riga e passo in
+        pixel. L'ottava si legge dalle etichette (OCR), o si dice a mano con
+        <code>--ottava</code>.</p>
+        <p><strong>3. Il tempo.</strong> Non serve sapere il BPM del progetto: la testina
+        scorre, e <code>T = t + (x − xp)/ppt</code> converte pixel in secondi musicali, con
+        la stessa formula sia quando scorre la testina sia quando scorre la griglia sotto
+        di lei.</p>
+        <p><strong>4. Le note.</strong> Per ogni riga i pixel più chiari del fondo sono le
+        teste delle note, quelli appena più chiari il corpo: da lì inizio, fine e altezza;
+        poi un raggruppamento temporale toglie il rumore.</p>
+      </div>
+      <div>
+        <p>Il risultato è un MIDI con <code>note_on</code>/<code>note_off</code> veri, che si
+        apre in FL Studio, Ableton, Logic, MuseScore o in un browser.</p>
+        <p><strong>Quando funziona bene:</strong> piano roll in verticale o orizzontale,
+        testina visibile, note non coperte da finestre, zoom che non cambia a metà
+        registrazione.</p>
+        <p><strong>Quando no:</strong> nessuna testina e nessuno scorrimento (il tempo è
+        fermo), piano roll troppo piccolo, note dello stesso colore del fondo.</p>
+        <p class="mini">Il BPM del progetto non viene indovinato: il <code>.mid</code> si
+        scrive a 120 BPM per default (o a quello che scegli); i tempi restano corretti in
+        secondi.</p>
+        <p class="mini">Non c'è nessun modello da scaricare: niente pesi, niente GPU.
+        Solo <code>opencv-python</code>, <code>numpy</code>, <code>flask</code>,
+        <code>mido</code> e, se c'è, <code>tesseract</code> per le etichette dei tasti.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between">
+    <span>Raedius Productions · Video → MIDI · licenza MIT</span>
+    <span>
+      <a href="https://github.com/Alessandro1040/piano-roll-to-midi">codice</a> ·
+      <a href="guida.html">guida completa</a> ·
+      <a href="https://github.com/Alessandro1040/piano-roll-to-midi/issues">problemi</a>
+    </span>
+  </div>
+</footer>
+<script>
+(function(){
+  var canvas = document.getElementById('roll');
+  var audio  = document.getElementById('audio');
+  var ico    = document.getElementById('ico');
+  var btn    = document.getElementById('play');
+  var tcur   = document.getElementById('tcur');
+  var tdur   = document.getElementById('tdur');
+  var nn     = document.getElementById('nn');
+  var dati   = null;
+  var DUR    = 5;
+  var PAD    = {l:34, r:10, t:26, b:16};
+
+  function fmt(x){ return x.toFixed(2).replace('.', ','); }
+
+  function disegna(t){
+    var dpr = window.devicePixelRatio || 1;
+    var cssW = canvas.clientWidth || 520;
+    var cssH = 420;
+    if (canvas.width !== Math.round(cssW*dpr) || canvas.height !== Math.round(cssH*dpr)) {
+      canvas.width  = Math.round(cssW*dpr);
+      canvas.height = Math.round(cssH*dpr);
+      canvas.style.height = cssH + 'px';
+    }
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    var W = cssW, H = cssH;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#0b0c0d'; ctx.fillRect(0,0,W,H);
+    if (!dati) return;
+
+    var note = dati.note;
+    var lo = 127, hi = 0;
+    note.forEach(function(n){ lo = Math.min(lo, n.midi); hi = Math.max(hi, n.midi); });
+    if (lo > hi) { lo = 48; hi = 72; }
+    lo -= 2; hi += 2;
+    var nRighe = hi - lo + 1;
+    var hR = (H - PAD.t - PAD.b) / nRighe;
+    var larg = W - PAD.l - PAD.r;
+    function xDi(sec){ return PAD.l + larg * (sec / DUR); }
+
+    var nomi = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    for (var p = lo; p <= hi; p++) {
+      var y = PAD.t + (hi - p) * hR;
+      var nero = nomi[p % 12].indexOf('#') === 1;
+      ctx.fillStyle = nero ? '#131416' : '#1a1b1e';
+      ctx.fillRect(PAD.l, y, larg, hR);
+      if (p % 12 === 0) {
+        ctx.fillStyle = 'rgba(242,236,228,.55)';
+        ctx.font = '10px ui-monospace,Menlo,monospace';
+        ctx.fillText('C' + (Math.floor(p/12) - 1), 8, y + hR*0.8);
+      }
+    }
+    ctx.strokeStyle = 'rgba(242,236,228,.07)'; ctx.lineWidth = 1;
+    for (var s = 0; s <= DUR; s += 0.5) {
+      var x = xDi(s);
+      ctx.beginPath(); ctx.moveTo(x + .5, PAD.t); ctx.lineTo(x + .5, H - PAD.b); ctx.stroke();
+    }
+    note.forEach(function(n){
+      var x0 = xDi(n.inizio), x1 = xDi(n.inizio + n.durata);
+      var y = PAD.t + (hi - n.midi) * hR;
+      ctx.fillStyle = 'rgba(224,85,60,.16)';
+      ctx.fillRect(PAD.l, y + 1, larg, Math.max(1, hR - 2));
+      ctx.fillStyle = '#e0553c';
+      ctx.fillRect(x0, y + 1, Math.max(3, x1 - x0), Math.max(2, hR - 2));
+      ctx.fillStyle = '#ff7a5c';
+      ctx.fillRect(x0, y + 1, Math.max(3, Math.min(5, x1 - x0)), Math.max(2, hR - 2));
+    });
+    var xp = xDi(Math.min(t, DUR));
+    ctx.strokeStyle = '#6fbf73'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(xp, PAD.t - 6); ctx.lineTo(xp, H - PAD.b); ctx.stroke();
+    ctx.fillStyle = 'rgba(111,191,115,.9)';
+    ctx.beginPath(); ctx.moveTo(xp, PAD.t - 8); ctx.lineTo(xp - 5, PAD.t - 16);
+    ctx.lineTo(xp + 5, PAD.t - 16); ctx.closePath(); ctx.fill();
+    tcur.textContent = fmt(t);
+  }
+
+  function icona(suona){
+    ico.setAttribute('d', suona ? 'M0 0h4v14H0zM8 0h4v14H8z' : 'M0 0l12 7-12 7z');
+  }
+
+  fetch('assets/demo_song.json').then(function(r){ return r.json(); }).then(function(d){
+    dati = d;
+    DUR = d.durata;
+    nn.textContent = d.note.length;
+    tdur.textContent = fmt(DUR);
+    disegna(0);
+  });
+
+  function frame(){
+    if (!audio.paused) disegna(audio.currentTime);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  btn.addEventListener('click', function(){
+    if (audio.paused) { audio.play(); icona(true); } else { audio.pause(); icona(false); }
+  });
+  audio.addEventListener('ended', function(){ icona(false); disegna(0); });
+  canvas.addEventListener('click', function(e){
+    var r = canvas.getBoundingClientRect();
+    var frac = (e.clientX - r.left - PAD.l) / (r.width - PAD.l - PAD.r);
+    audio.currentTime = Math.max(0, Math.min(DUR, frac * DUR));
+    disegna(audio.currentTime);
+  });
+  window.addEventListener('keydown', function(e){
+    if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); btn.click(); }
+  });
+  window.addEventListener('resize', function(){ disegna(audio.currentTime); });
+})();
+</script>
+
+</body>
+</html>
