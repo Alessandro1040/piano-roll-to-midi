@@ -17,6 +17,8 @@ video.mp4  ──►  tastiera + griglia dei semitoni  ──►  altezza di ogn
                                             note_on / note_off  ──►  video.mid
 ```
 
+[![La pagina demo: a sinistra il video, a destra il MIDI ricavato](docs/assets/screenshot.jpg)](https://alessandro1040.github.io/piano-roll-to-midi/)
+
 ---
 
 ## Usarlo in 30 secondi (senza installare niente)
